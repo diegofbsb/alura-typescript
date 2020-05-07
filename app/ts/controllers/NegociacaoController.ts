@@ -1,6 +1,7 @@
 import { MensagemView, NegociacoesView } from "../views/index";
-import { Negociacoes, Negociacao, NegociacaoParcial } from "../models/index";
+import { Negociacoes, Negociacao } from "../models/index";
 import { domInject, throttle } from "../helpers/decorators/index";
+import { NegociacaoService, HamdlerFunction } from "../services/index"
 
 export class NegociacaoController {
 
@@ -16,6 +17,7 @@ export class NegociacaoController {
     private _negociacoes = new Negociacoes();
     private _negociacoesView = new NegociacoesView('#negociacoesView');
     private _mensagemView = new MensagemView('#mensagemView');
+    private _service = new NegociacaoService();
 
     constructor() {
         this._negociacoesView.update(this._negociacoes);
@@ -26,14 +28,14 @@ export class NegociacaoController {
     adiciona() {
 
         let data = new Date(this._inputData.val().replace(/-/g, ','));
-        
-        if(!this._ehDiaUtil(data)){
+
+        if (!this._ehDiaUtil(data)) {
             this._mensagemView.update('Negociações só podem ocorrer em dias úteis"');
             return;
         }
 
         const negociacao = new Negociacao(
-            data, 
+            data,
             parseInt(this._inputQuantidade.val()),
             parseFloat(this._inputValor.val())
         );
@@ -46,27 +48,21 @@ export class NegociacaoController {
 
     private _ehDiaUtil(data: Date) {
         return data.getDay() != DiaDaSemana.Sabado && data.getDay() != DiaDaSemana.Domingo;
-    } 
+    }
 
-    
-    importaDados(){
-        function isOK(res: Response){
-            if(res.ok){
-                return res;
-            }else{
+
+    importaDados() {
+
+       this._service
+            .obterNegociacoes(res => {
+                if(res.ok) return res;
                 throw new Error(res.statusText);
-            }
-        }
-        fetch('http://localhost:8080/dados')
-        .then(res => isOK(res))
-            .then(res => res.json())
-            .then((dados: NegociacaoParcial[]) => {
-                dados
-                    .map(dado => new Negociacao(new Date(), dado.vezes, dado.montante))
-                    .forEach(negociacao => this._negociacoes.adiciona(negociacao));
-                this._negociacoesView.update(this._negociacoes);
             })
-            .catch(err => console.log(err.message));   
+            .then(negociacoes => {
+                negociacoes.forEach(negociacao => 
+                    this._negociacoes.adiciona(negociacao));
+                this._negociacoesView.update(this._negociacoes);
+            });
     }
 }
 
@@ -74,8 +70,8 @@ enum DiaDaSemana {
     Domingo,
     Segunda,
     Terca,
-    Quarta, 
-    Quinta, 
-    Sexta, 
-    Sabado, 
+    Quarta,
+    Quinta,
+    Sexta,
+    Sabado,
 }
